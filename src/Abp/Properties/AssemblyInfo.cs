@@ -18,7 +18,10 @@ using Abp;
 
 [assembly: InternalsVisibleTo("Abp.Application")]
 [assembly: InternalsVisibleTo("Abp.EntityFramework")]
+[assembly: InternalsVisibleTo("Abp.EntityFrameworkCore")]
 [assembly: InternalsVisibleTo("Abp.NHibernate")]
+[assembly: InternalsVisibleTo("Abp.Web.Common")]
+[assembly: InternalsVisibleTo("Abp.AspNetCore")]
 [assembly: InternalsVisibleTo("Abp.Web")]
 [assembly: InternalsVisibleTo("Abp.Web.Api")]
 [assembly: InternalsVisibleTo("Abp.Web.Mvc")]
@@ -48,5 +51,5 @@ using Abp;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion(AbpConsts.CurrentVersion)]
-[assembly: AssemblyFileVersion(AbpConsts.CurrentVersion)]
+
+
