@@ -1,21 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Abp.AspNetCore;
 using Abp.AspNetCore.Mvc;
-using AbpAspNetCoreDemo.EntityFrameworkCore;
 using Castle.Facilities.Logging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
 
 namespace AbpAspNetCoreDemo
 {
     public class Startup
     {
-        public IConfigurationRoot Configuration { get; }
-
         public Startup(IHostingEnvironment env)
         {
             var builder = new ConfigurationBuilder()
@@ -26,22 +25,22 @@ namespace AbpAspNetCoreDemo
             Configuration = builder.Build();
         }
 
+        public IConfigurationRoot Configuration { get; }
+
+        // This method gets called by the runtime. Use this method to add services to the container.
         public IServiceProvider ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<MyDbContext>(
-                options => options.UseSqlServer(Configuration.GetConnectionString("Default"))
-            );
-
+            //Add framework services.
             services.AddMvc(options =>
             {
-                options.AddAbp(); //Add ABP infrastructure to MVC
-            }).AddControllersAsServices();
+                options.AddAbp(services); //Add ABP infrastructure to MVC
+            });
 
-            //Configure Dependency Injection
-            return services.AddAbp(abpBootstrapper =>
+            //Configure Abp and Dependency Injection. Should be called last.
+            return services.AddAbp<AbpAspNetCoreDemoModule>(options =>
             {
                 //Configure Log4Net logging
-                abpBootstrapper.IocManager.IocContainer.AddFacility<LoggingFacility>(
+                options.IocManager.IocContainer.AddFacility<LoggingFacility>(
                     f => f.UseLog4Net().WithConfig("log4net.config")
                 );
             });
@@ -50,16 +49,19 @@ namespace AbpAspNetCoreDemo
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
-            app.UseAbp(); //Initializes ABP framework.
+            app.UseAbp(); //Initializes ABP framework. Should be called first.
+
+            loggerFactory.AddConsole(Configuration.GetSection("Logging"));
+            loggerFactory.AddDebug();
 
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
-                app.UseDatabaseErrorPage();
+                app.UseBrowserLink();
             }
             else
             {
-                app.UseExceptionHandler("/Error");
+                app.UseExceptionHandler("/Home/Error");
             }
 
             app.UseStaticFiles();
