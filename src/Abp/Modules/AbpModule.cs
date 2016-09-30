@@ -5,6 +5,7 @@ using System.Reflection;
 using Abp.Collections.Extensions;
 using Abp.Configuration.Startup;
 using Abp.Dependency;
+using Castle.Core.Logging;
 
 namespace Abp.Modules
 {
@@ -27,6 +28,16 @@ namespace Abp.Modules
         /// Gets a reference to the ABP configuration.
         /// </summary>
         protected internal IAbpStartupConfiguration Configuration { get; internal set; }
+
+        /// <summary>
+        /// Gets or sets the logger.
+        /// </summary>
+        public ILogger Logger { get; set; }
+
+        protected AbpModule()
+        {
+            Logger = NullLogger.Instance;
+        }
 
         /// <summary>
         /// This is the first event called on application startup. 
@@ -80,7 +91,7 @@ namespace Abp.Modules
         }
 
         /// <summary>
-        /// Finds direct depended modules of a module.
+        /// Finds direct depended modules of a module (excluding given module).
         /// </summary>
         public static List<Type> FindDependedModuleTypes(Type moduleType)
         {
@@ -106,11 +117,7 @@ namespace Abp.Modules
             return list;
         }
 
-
-        /// <summary>
-        /// Finds all depended modules (and their dependencies recursively) for a module.
-        /// </summary>
-        public static List<Type> FindDependedModuleTypesRecursively(Type moduleType)
+        public static List<Type> FindDependedModuleTypesRecursivelyIncludingGivenModule(Type moduleType)
         {
             var list = new List<Type>();
             AddModuleAndDependenciesResursively(list, moduleType);

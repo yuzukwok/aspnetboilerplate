@@ -3,6 +3,7 @@ using System.Linq;
 using Abp.Configuration.Startup;
 using Abp.Domain.Repositories;
 using Abp.Domain.Uow;
+using Abp.TestBase.SampleApplication.Messages;
 using Abp.TestBase.SampleApplication.Tests.People;
 using Abp.Timing;
 using Shouldly;
@@ -16,8 +17,13 @@ namespace Abp.TestBase.SampleApplication.Tests.ContactLists
 
         public Messages_MultiTenancy_Tests()
         {
-            Resolve<IMultiTenancyConfig>().IsEnabled = true;
             _messageRepository = Resolve<IRepository<Message>>();
+        }
+
+        protected override void CreateInitialData()
+        {
+            Resolve<IMultiTenancyConfig>().IsEnabled = true;
+            base.CreateInitialData();
         }
 
         [Fact]

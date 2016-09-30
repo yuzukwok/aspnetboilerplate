@@ -1,10 +1,11 @@
 {
-  "version": "0.10.1.2-*",
+  "version": "1.0.0.0-*",
 
   "dependencies": {
-    "Abp": "0.10.1.2-*",
-    "Abp.EntityFramework.Common": "0.10.1.2-*",
-    "Microsoft.EntityFrameworkCore": "1.0.0"
+    "Abp": "1.0.0.0-*",
+    "Abp.EntityFramework.Common": "1.0.0.0-*",
+    "Microsoft.EntityFrameworkCore": "1.0.1",
+    "Microsoft.EntityFrameworkCore.Relational": "1.0.1"
   },
 
   "frameworks": {
@@ -31,10 +32,11 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/aspnetboilerplate/aspnetboilerplate"
+    },
+    "files": {
+      "mappings": {
+        "lib/net461/": "bin/Release/net461/Abp.EntityFrameworkCore.pdb"
+      }
     }
-  },
-
-  "packInclude": {
-    "lib/net461/": "bin/Release/net461/Abp.EntityFrameworkCore.pdb"
   }
 }

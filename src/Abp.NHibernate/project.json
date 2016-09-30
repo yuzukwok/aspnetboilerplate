@@ -1,8 +1,8 @@
 ﻿{
-  "version": "0.10.1.2-*",
+  "version": "1.0.0.0-*",
 
   "dependencies": {
-    "Abp": "0.10.1.2-*",
+    "Abp": "1.0.0.0-*",
     "NHibernate": "4.0.4.4000",
     "FluentNHibernate": "2.0.3"
   },
@@ -31,10 +31,11 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/aspnetboilerplate/aspnetboilerplate"
+    },
+    "files": {
+      "mappings": {
+        "lib/net452/": "bin/Release/net452/Abp.NHibernate.pdb"
+      }
     }
-  },
-
-  "packInclude": {
-    "lib/net452/": "bin/Release/net452/Abp.NHibernate.pdb"
   }
 }

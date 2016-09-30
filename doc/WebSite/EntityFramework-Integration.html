@@ -90,7 +90,7 @@ predefined repository methods. Example:</p>
 uses the <strong>Insert</strong> method. In this way, you can easily inject
 				<strong>IRepository&lt;TEntity&gt;</strong> (or IRepository&lt;TEntity, TPrimaryKey&gt;) and 
 use predefined methods. See <a href="/Pages/Documents/Repositories">repository 
-documentation</a> for list of all predefined methods.</p>
+documentation</a> for all predefined methods.</p>
 
 			<h4 id="DocCustomRepositoryMethods">Custom Repositories</h4>
 			<p>If standard repository methods are not sufficient, you can create 
@@ -126,7 +126,7 @@ public class SimpleTaskSystemRepositoryBase&lt;TEntity&gt; : <strong>SimpleTaskS
     //do not add any method here, add to the class above (because this class inherits it)
 }</pre>
 			<p>Notice that we're inheriting from EfRepositoryBase&lt;<strong>SimpleTaskSystemDbContext</strong>, TEntity, TPrimaryKey&gt;. 
-This declares ASP.NET Boilerplate to use SimpleTaskSystemDbContext in our 
+This declares to ASP.NET Boilerplate to use SimpleTaskSystemDbContext in our 
 repositories.</p>
 			<h5>Custom Repository Example</h5>
 
@@ -177,6 +177,11 @@ then implemented it.<strong> GetAll()</strong> returns <strong>IQueryable&lt;Tas
 Tasks.</p>
 			<p>You can also use <strong>Context </strong>object in repository methods to 
 reach to your DbContext and directly use Entity Framework APIs.&nbsp;</p>
+			<p><strong>Note</strong>: Define the custom repository <strong>
+			interface </strong>in the <strong>domain/core</strong> layer,
+			<strong>implement </strong>it in the <strong>EntityFramework
+			</strong>project for layered applications. Thus, you can inject the 
+			interface from any project without referencing to EF.</p>
 			<h4>Repository Best Practices</h4>
 			<ul>
 				<li><strong>Use default repositories</strong> wherever it's 
@@ -188,7 +193,8 @@ reach to your DbContext and directly use Entity Framework APIs.&nbsp;</p>
 				<li>Define <strong>interfaces </strong>for your custom 
 				repositories in <strong>domain layer</strong> (.Core project in 
 				startup template), custom repository <strong>classes </strong>in
-				<strong>.EntityFramework</strong> project.</li>
+				<strong>.EntityFramework</strong> project if you want to 
+				abstract EF from your domain/application.</li>
 			</ul>
 		</div>
 	</body>

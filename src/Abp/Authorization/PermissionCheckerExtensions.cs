@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 using Abp.Collections.Extensions;
+using Abp.Dependency;
+using Abp.Localization;
 using Abp.Threading;
 
 namespace Abp.Authorization
@@ -24,38 +26,13 @@ namespace Abp.Authorization
         /// Checks if a user is granted for a permission.
         /// </summary>
         /// <param name="permissionChecker">Permission checker</param>
-        /// <param name="userId">Id of the user to check</param>
-        /// <param name="permissionName">Name of the permission</param>
-        [Obsolete("Use IsGranted(IPermissionChecker, UserIdentifier, string) instead.")]
-        public static bool IsGranted(this IPermissionChecker permissionChecker, long userId, string permissionName)
-        {
-            return AsyncHelper.RunSync(() => permissionChecker.IsGrantedAsync(userId, permissionName));
-        }
-
-        /// <summary>
-        /// Checks if a user is granted for a permission.
-        /// </summary>
-        /// <param name="permissionChecker">Permission checker</param>
         /// <param name="user">User to check</param>
         /// <param name="permissionName">Name of the permission</param>
         public static bool IsGranted(this IPermissionChecker permissionChecker, UserIdentifier user, string permissionName)
         {
             return AsyncHelper.RunSync(() => permissionChecker.IsGrantedAsync(user, permissionName));
         }
-
-        /// <summary>
-        /// Checks if given user is granted for given permission.
-        /// </summary>
-        /// <param name="permissionChecker">Permission checker</param>
-        /// <param name="userId">User id</param>
-        /// <param name="requiresAll">True, to require all given permissions are granted. False, to require one or more.</param>
-        /// <param name="permissionNames">Name of the permissions</param>
-        [Obsolete("Use IsGranted(IPermissionChecker, UserIdentifier, bool, params string[]) instead")]
-        public static bool IsGranted(this IPermissionChecker permissionChecker, long userId, bool requiresAll, params string[] permissionNames)
-        {
-            return AsyncHelper.RunSync(() => IsGrantedAsync(permissionChecker, userId, requiresAll, permissionNames));
-        }
-
+        
         /// <summary>
         /// Checks if given user is granted for given permission.
         /// </summary>
@@ -66,47 +43,6 @@ namespace Abp.Authorization
         public static bool IsGranted(this IPermissionChecker permissionChecker, UserIdentifier user, bool requiresAll, params string[] permissionNames)
         {
             return AsyncHelper.RunSync(() => IsGrantedAsync(permissionChecker, user, requiresAll, permissionNames));
-        }
-
-        /// <summary>
-        /// Checks if given user is granted for given permission.
-        /// </summary>
-        /// <param name="permissionChecker">Permission checker</param>
-        /// <param name="userId">User id</param>
-        /// <param name="requiresAll">True, to require all given permissions are granted. False, to require one or more.</param>
-        /// <param name="permissionNames">Name of the permissions</param>
-        [Obsolete("Use IsGrantedAsync(IPermissionChecker, UserIdentifier, bool, params string[]) instead")]
-        public static async Task<bool> IsGrantedAsync(this IPermissionChecker permissionChecker, long userId, bool requiresAll, params string[] permissionNames)
-        {
-            if (permissionNames.IsNullOrEmpty())
-            {
-                return true;
-            }
-
-            if (requiresAll)
-            {
-                foreach (var permissionName in permissionNames)
-                {
-                    if (!(await permissionChecker.IsGrantedAsync(userId, permissionName)))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-            else
-            {
-                foreach (var permissionName in permissionNames)
-                {
-                    if (await permissionChecker.IsGrantedAsync(userId, permissionName))
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
         }
 
         /// <summary>
@@ -263,16 +199,33 @@ namespace Abp.Authorization
             if (requireAll)
             {
                 throw new AbpAuthorizationException(
-                    "Required permissions are not granted. All of these permissions must be granted: " +
-                    string.Join(", ", permissionNames)
-                    );
+                    string.Format(
+                        L(permissionChecker, "AllOfThesePermissionsMustBeGranted", "Required permissions are not granted. All of these permissions must be granted: {0}"),
+                        string.Join(", ", permissionNames)
+                    )
+                );
             }
             else
             {
                 throw new AbpAuthorizationException(
-                    "Required permissions are not granted. At least one of these permissions must be granted: " +
-                    string.Join(", ", permissionNames)
-                    );
+                    string.Format(
+                        L(permissionChecker, "AtLeastOneOfThesePermissionsMustBeGranted", "Required permissions are not granted. At least one of these permissions must be granted: {0}"),
+                        string.Join(", ", permissionNames)
+                    )
+                );
+            }
+        }
+
+        public static string L(IPermissionChecker permissionChecker, string name, string defaultValue)
+        {
+            if (!(permissionChecker is IIocManagerAccessor))
+            {
+                return defaultValue;
+            }
+
+            using (var localizationManager = (permissionChecker as IIocManagerAccessor).IocManager.ResolveAsDisposable<ILocalizationManager>())
+            {
+                return localizationManager.Object.GetString(AbpConsts.LocalizationSourceName, name);
             }
         }
     }

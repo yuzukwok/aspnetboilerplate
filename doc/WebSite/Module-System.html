@@ -111,9 +111,36 @@ the MyBlogApplicationModule.</p>
 {
     protected <strong>override void Application_Start</strong>(object sender, EventArgs e)
     {
-        <strong>AbpBootstrapper.AddFolder(@"C:\MyPlugIns");</strong>
+        <strong>AbpBootstrapper.PlugInSources.AddFolder(@"C:\MyPlugIns");</strong>
         //...
         base.Application_Start(sender, e);
+    }
+}</pre>
+			<h5 lang="cs"><span lang="tr">Controllers in PlugIns</span></h5>
+			<p lang="cs"><span lang="tr">If your modules include MVC or Web API 
+			Controllers, ASP.NET can not investigate your controllers. To 
+			overcome this issue, you can change global.asax file like below:</span></p>
+			<pre lang="cs">using System.Web;
+using Abp.PlugIns;
+using Abp.Web;
+using MyDemoApp.Web;
+
+<strong>[assembly: PreApplicationStartMethod(typeof(PreStarter), &quot;Start&quot;)]
+</strong>
+namespace MyDemoApp.Web
+{
+    public class MvcApplication : AbpWebApplication&lt;MyStartupModule&gt;
+    {
+    }
+
+    public static class PreStarter
+    {
+        public static void Start()
+        {
+            //...
+            MvcApplication.AbpBootstrapper.PlugInSources.AddFolder(@&quot;C:\MyPlugIns\&quot;);
+            <strong>MvcApplication.AbpBootstrapper.PlugInSources.AddToBuildManager();</strong>
+        }
     }
 }</pre>
 <h3>Additional Assemblies</h3>

@@ -1,9 +1,9 @@
 {
-  "version": "0.10.1.2-*",
+  "version": "1.0.0.0-*",
 
   "dependencies": {
-    "Abp": "0.10.1.2-*",
-    "Hangfire.Core": "1.5.9"
+    "Abp": "1.0.0.0-*",
+    "Hangfire.Core": "1.6.5"
   },
 
   "frameworks": {
@@ -30,10 +30,11 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/aspnetboilerplate/aspnetboilerplate"
+    },
+    "files": {
+      "mappings": {
+        "lib/net452/": "bin/Release/net452/Abp.HangFire.pdb"
+      }
     }
-  },
-
-  "packInclude": {
-    "lib/net452/": "bin/Release/net452/Abp.HangFire.pdb"
   }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,7 +9,7 @@ using System.Web.Mvc;
 using Abp.Application.Features;
 using Abp.Authorization;
 using Abp.Configuration;
-using Abp.Dependency;
+using Abp.Domain.Entities;
 using Abp.Domain.Uow;
 using Abp.Events.Bus;
 using Abp.Events.Bus.Exceptions;
@@ -21,6 +22,7 @@ using Abp.Web.Models;
 using Abp.Web.Mvc.Configuration;
 using Abp.Web.Mvc.Controllers.Results;
 using Abp.Web.Mvc.Extensions;
+using Abp.Web.Mvc.Helpers;
 using Abp.Web.Mvc.Models;
 using Castle.Core.Logging;
 
@@ -111,12 +113,6 @@ namespace Abp.Web.Mvc.Controllers
         public ILogger Logger { get; set; }
 
         /// <summary>
-        /// Gets current session information.
-        /// </summary>
-        [Obsolete("Use AbpSession property instead. CurrentSession will be removed in future releases.")]
-        protected IAbpSession CurrentSession { get { return AbpSession; } }
-
-        /// <summary>
         /// Reference to <see cref="IUnitOfWorkManager"/>.
         /// </summary>
         public IUnitOfWorkManager UnitOfWorkManager
@@ -138,8 +134,6 @@ namespace Abp.Web.Mvc.Controllers
         /// Gets current unit of work.
         /// </summary>
         protected IActiveUnitOfWork CurrentUnitOfWork { get { return UnitOfWorkManager.Current; } }
-
-        public IIocResolver IocResolver { get; set; }
 
         public IAbpMvcConfiguration AbpMvcConfiguration { get; set; }
 
@@ -163,7 +157,6 @@ namespace Abp.Web.Mvc.Controllers
             LocalizationManager = NullLocalizationManager.Instance;
             PermissionChecker = NullPermissionChecker.Instance;
             EventBus = NullEventBus.Instance;
-            IocResolver = IocManager.Instance;
         }
 
         /// <summary>
@@ -263,13 +256,28 @@ namespace Abp.Web.Mvc.Controllers
                 return base.Json(data, contentType, contentEncoding, behavior);
             }
 
-            if (data == null)
+            return AbpJson(data, contentType, contentEncoding, behavior);
+        }
+
+        protected virtual AbpJsonResult AbpJson(
+            object data,
+            string contentType = null,
+            Encoding contentEncoding = null,
+            JsonRequestBehavior behavior = JsonRequestBehavior.DenyGet,
+            bool wrapResult = true,
+            bool camelCase = true,
+            bool indented = false)
+        {
+            if (wrapResult)
             {
-                data = new AjaxResponse();
-            }
-            else if (!ReflectionHelper.IsAssignableToGenericType(data.GetType(), typeof(AjaxResponse<>)))
-            {
-                data = new AjaxResponse(data);
+                if (data == null)
+                {
+                    data = new AjaxResponse();
+                }
+                else if (!(data is AjaxResponseBase))
+                {
+                    data = new AjaxResponse(data);
+                }
             }
 
             return new AbpJsonResult
@@ -277,7 +285,9 @@ namespace Abp.Web.Mvc.Controllers
                 Data = data,
                 ContentType = contentType,
                 ContentEncoding = contentEncoding,
-                JsonRequestBehavior = behavior
+                JsonRequestBehavior = behavior,
+                CamelCase = camelCase,
+                Indented = indented
             };
         }
 
@@ -359,7 +369,8 @@ namespace Abp.Web.Mvc.Controllers
             //Return an error response to the client.
             context.HttpContext.Response.Clear();
             context.HttpContext.Response.StatusCode = GetStatusCodeForException(context);
-            context.Result = IsJsonResult()
+
+            context.Result = MethodInfoHelper.IsJsonResult(_currentMethodInfo)
                 ? GenerateJsonExceptionResult(context)
                 : GenerateNonJsonExceptionResult(context);
 
@@ -374,28 +385,27 @@ namespace Abp.Web.Mvc.Controllers
 
         protected virtual int GetStatusCodeForException(ExceptionContext context)
         {
-            
+
             if (context.Exception is AbpAuthorizationException)
             {
                 return context.HttpContext.User.Identity.IsAuthenticated
-                    ? 403
-                    : 401;
+                    ? (int)HttpStatusCode.Forbidden
+                    : (int)HttpStatusCode.Unauthorized;
             }
 
-            return 500;
-        }
+            if (context.Exception is EntityNotFoundException)
+            {
+                return (int)HttpStatusCode.NotFound;
+            }
 
-        protected virtual bool IsJsonResult()
-        {
-            return typeof(JsonResult).IsAssignableFrom(_currentMethodInfo.ReturnType) ||
-                   typeof(Task<JsonResult>).IsAssignableFrom(_currentMethodInfo.ReturnType);
+            return (int)HttpStatusCode.InternalServerError;
         }
 
         protected virtual ActionResult GenerateJsonExceptionResult(ExceptionContext context)
         {
             context.HttpContext.Items.Add("IgnoreJsonRequestBehaviorDenyGet", "true");
             return new AbpJsonResult(
-                new MvcAjaxResponse(
+                new AjaxResponse(
                     ErrorInfoBuilder.BuildForException(context.Exception),
                     context.Exception is AbpAuthorizationException
                     )

@@ -5,8 +5,9 @@ using Abp.AspNetCore.Mvc.Extensions;
 using Abp.AspNetCore.Mvc.Results;
 using Abp.Authorization;
 using Abp.Dependency;
+using Abp.Events.Bus;
+using Abp.Events.Bus.Exceptions;
 using Abp.Web.Models;
-using Abp.Web.Mvc.Models;
 using Castle.Core.Logging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -20,14 +21,16 @@ namespace Abp.AspNetCore.Mvc.Authorization
 
         private readonly IAuthorizationHelper _authorizationHelper;
         private readonly IErrorInfoBuilder _errorInfoBuilder;
+        private readonly IEventBus _eventBus;
 
         public AbpAuthorizationFilter(
             IAuthorizationHelper authorizationHelper,
-            IErrorInfoBuilder errorInfoBuilder
-            )
+            IErrorInfoBuilder errorInfoBuilder,
+            IEventBus eventBus)
         {
             _authorizationHelper = authorizationHelper;
             _errorInfoBuilder = errorInfoBuilder;
+            _eventBus = eventBus;
             Logger = NullLogger.Instance;
         }
 
@@ -48,9 +51,11 @@ namespace Abp.AspNetCore.Mvc.Authorization
             {
                 Logger.Warn(ex.ToString(), ex);
 
+                _eventBus.Trigger(this, new AbpHandledExceptionData(ex));
+
                 if (ActionResultHelper.IsObjectResult(context.ActionDescriptor.GetMethodInfo().ReturnType))
                 {
-                    context.Result = new ObjectResult(new MvcAjaxResponse(_errorInfoBuilder.BuildForException(ex), true))
+                    context.Result = new ObjectResult(new AjaxResponse(_errorInfoBuilder.BuildForException(ex), true))
                     {
                         StatusCode = context.HttpContext.User.Identity.IsAuthenticated
                             ? (int) System.Net.HttpStatusCode.Forbidden
@@ -66,9 +71,11 @@ namespace Abp.AspNetCore.Mvc.Authorization
             {
                 Logger.Error(ex.ToString(), ex);
 
+                _eventBus.Trigger(this, new AbpHandledExceptionData(ex));
+
                 if (ActionResultHelper.IsObjectResult(context.ActionDescriptor.GetMethodInfo().ReturnType))
                 {
-                    context.Result = new ObjectResult(new MvcAjaxResponse(_errorInfoBuilder.BuildForException(ex)))
+                    context.Result = new ObjectResult(new AjaxResponse(_errorInfoBuilder.BuildForException(ex)))
                     {
                         StatusCode = (int) System.Net.HttpStatusCode.InternalServerError
                     };

@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 using Abp.Collections.Extensions;
 using Abp.Web.Api.ProxyScripting.Generators;
+using JetBrains.Annotations;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Abp.AspNetCore.Mvc.Conventions
@@ -25,7 +26,7 @@ namespace Abp.AspNetCore.Mvc.Conventions
             _configuration = new Lazy<AbpAspNetCoreConfiguration>(() =>
             {
                 return services
-                    .GetSingletonServiceOrNull<AbpBootstrapper>()
+                    .GetSingletonService<AbpBootstrapper>()
                     .IocManager
                     .Resolve<AbpAspNetCoreConfiguration>();
             }, true);
@@ -36,27 +37,44 @@ namespace Abp.AspNetCore.Mvc.Conventions
             foreach (var controller in application.Controllers)
             {
                 var type = controller.ControllerType.AsType();
+                var configuration = GetControllerSettingOrNull(type);
 
                 if (typeof(IApplicationService).IsAssignableFrom(type))
                 {
-                    controller.ControllerName = controller.ControllerName.RemovePostFix("AppService", "ApplicationService", "Service");
-                    ConfigureRemoteService(controller);
+                    controller.ControllerName = controller.ControllerName.RemovePostFix(ApplicationService.CommonPostfixes);
+                    configuration?.ControllerModelConfigurer(controller);
+
+                    ConfigureArea(controller, configuration);
+                    ConfigureRemoteService(controller, configuration);
                 }
                 else
                 {
                     var remoteServiceAtt = ReflectionHelper.GetSingleAttributeOrDefault<RemoteServiceAttribute>(type);
                     if (remoteServiceAtt != null && remoteServiceAtt.IsEnabledFor(type))
                     {
-                        ConfigureRemoteService(controller);
+                        ConfigureRemoteService(controller, configuration);
                     }
                 }
             }
         }
 
-        private void ConfigureRemoteService(ControllerModel controller)
+        private void ConfigureArea(ControllerModel controller, [CanBeNull] AbpControllerAssemblySetting configuration)
         {
-            var configuration = GetControllerSettingOrNull(controller.ControllerType);
+            if (configuration == null)
+            {
+                return;
+            }
 
+            if (controller.RouteValues.ContainsKey("area"))
+            {
+                return;
+            }
+
+            controller.RouteValues["area"] = configuration.ModuleName;
+        }
+
+        private void ConfigureRemoteService(ControllerModel controller, [CanBeNull] AbpControllerAssemblySetting configuration)
+        {
             ConfigureApiExplorer(controller);
             ConfigureSelector(controller, configuration);
             ConfigureParameters(controller);
@@ -75,7 +93,7 @@ namespace Abp.AspNetCore.Mvc.Conventions
 
                     if (!TypeHelper.IsPrimitiveExtendedIncludingNullable(prm.ParameterInfo.ParameterType))
                     {
-                        if (CanUseFormBodyBinding(action))
+                        if (CanUseFormBodyBinding(action, prm))
                         {
                             prm.BindingInfo = BindingInfo.GetBindingInfo(new[] { new FromBodyAttribute() });
                         }
@@ -84,8 +102,13 @@ namespace Abp.AspNetCore.Mvc.Conventions
             }
         }
 
-        private static bool CanUseFormBodyBinding(ActionModel action)
+        private bool CanUseFormBodyBinding(ActionModel action, ParameterModel parameter)
         {
+            if (_configuration.Value.FormBodyBindingIgnoredTypes.Any(t => t.IsAssignableFrom(parameter.ParameterInfo.ParameterType)))
+            {
+                return false;
+            }
+
             foreach (var selector in action.Selectors)
             {
                 if (selector.ActionConstraints == null)
@@ -120,7 +143,18 @@ namespace Abp.AspNetCore.Mvc.Conventions
 
             if (controller.ApiExplorer.IsVisible == null)
             {
-                controller.ApiExplorer.IsVisible = true;
+                var controllerType = controller.ControllerType.AsType();
+                var remoteServiceAtt = ReflectionHelper.GetSingleAttributeOrDefault<RemoteServiceAttribute>(controllerType);
+                if (remoteServiceAtt != null)
+                {
+                    controller.ApiExplorer.IsVisible =
+                        remoteServiceAtt.IsEnabledFor(controllerType) &&
+                        remoteServiceAtt.IsMetadataEnabledFor(controllerType);
+                }
+                else
+                {
+                    controller.ApiExplorer.IsVisible = true;
+                }
             }
 
             foreach (var action in controller.Actions)
@@ -134,11 +168,16 @@ namespace Abp.AspNetCore.Mvc.Conventions
             if (action.ApiExplorer.IsVisible == null)
             {
                 var remoteServiceAtt = ReflectionHelper.GetSingleAttributeOrDefault<RemoteServiceAttribute>(action.ActionMethod);
-                action.ApiExplorer.IsVisible = remoteServiceAtt?.IsEnabledFor(action.ActionMethod);
+                if (remoteServiceAtt != null)
+                {
+                    action.ApiExplorer.IsVisible =
+                        remoteServiceAtt.IsEnabledFor(action.ActionMethod) &&
+                        remoteServiceAtt.IsMetadataEnabledFor(action.ActionMethod);
+                }
             }
         }
 
-        private void ConfigureSelector(ControllerModel controller, AbpServiceControllerSetting configuration)
+        private void ConfigureSelector(ControllerModel controller, [CanBeNull] AbpControllerAssemblySetting configuration)
         {
             RemoveEmptySelectors(controller.Selectors);
 
@@ -155,7 +194,7 @@ namespace Abp.AspNetCore.Mvc.Conventions
             }
         }
 
-        private void ConfigureSelector(string moduleName, string controllerName, ActionModel action, AbpServiceControllerSetting configuration)
+        private void ConfigureSelector(string moduleName, string controllerName, ActionModel action, [CanBeNull] AbpControllerAssemblySetting configuration)
         {
             RemoveEmptySelectors(action.Selectors);
 
@@ -169,7 +208,7 @@ namespace Abp.AspNetCore.Mvc.Conventions
             }
         }
 
-        private void AddAbpServiceSelector(string moduleName, string controllerName, ActionModel action, AbpServiceControllerSetting configuration)
+        private void AddAbpServiceSelector(string moduleName, string controllerName, ActionModel action, [CanBeNull] AbpControllerAssemblySetting configuration)
         {
             var abpServiceSelectorModel = new SelectorModel
             {
@@ -203,20 +242,13 @@ namespace Abp.AspNetCore.Mvc.Conventions
         private string GetModuleNameOrDefault(Type controllerType)
         {
             return GetControllerSettingOrNull(controllerType)?.ModuleName ??
-                   AbpServiceControllerSetting.DefaultServiceModuleName;
+                   AbpControllerAssemblySetting.DefaultServiceModuleName;
         }
 
-        private AbpServiceControllerSetting GetControllerSettingOrNull(Type controllerType)
+        [CanBeNull]
+        private AbpControllerAssemblySetting GetControllerSettingOrNull(Type controllerType)
         {
-            foreach (var controllerSetting in _configuration.Value.ServiceControllerSettings)
-            {
-                if (controllerSetting.Assembly == controllerType.Assembly)
-                {
-                    return controllerSetting;
-                }
-            }
-
-            return null;
+            return _configuration.Value.ControllerAssemblySettings.GetSettingOrNull(controllerType);
         }
 
         private static AttributeRouteModel CreateAbpServiceAttributeRouteModel(string moduleName, string controllerName, ActionModel action)

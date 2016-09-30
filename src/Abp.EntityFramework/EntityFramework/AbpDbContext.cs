@@ -7,14 +7,15 @@ using System.Data.Entity.Core.Objects;
 using System.Data.Entity.Infrastructure;
 using System.Data.Entity.Validation;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Abp.Collections.Extensions;
 using Abp.Configuration.Startup;
 using Abp.Dependency;
 using Abp.Domain.Entities;
 using Abp.Domain.Entities.Auditing;
 using Abp.Domain.Uow;
+using Abp.Events.Bus;
 using Abp.Events.Bus.Entities;
 using Abp.Extensions;
 using Abp.Reflection;
@@ -46,6 +47,11 @@ namespace Abp.EntityFramework
         public ILogger Logger { get; set; }
 
         /// <summary>
+        /// Reference to the event bus.
+        /// </summary>
+        public IEventBus EventBus { get; set; }
+
+        /// <summary>
         /// Reference to GUID generator.
         /// </summary>
         public IGuidGenerator GuidGenerator { get; set; }
@@ -54,6 +60,11 @@ namespace Abp.EntityFramework
         /// Reference to the current UOW provider.
         /// </summary>
         public ICurrentUnitOfWorkProvider CurrentUnitOfWorkProvider { get; set; }
+
+        /// <summary>
+        /// Reference to multi tenancy configuration.
+        /// </summary>
+        public IMultiTenancyConfig MultiTenancyConfig { get; set; }
 
         /// <summary>
         /// Constructor.
@@ -148,9 +159,9 @@ namespace Abp.EntityFramework
                     CheckAndSetMustHaveTenantIdProperty(entry.Entity);
                     SetCreationAuditProperties(entry.Entity, GetAuditUserId());
                     break;
-                //case EntityState.Deleted: //It's not going here at all
-                //    SetDeletionAuditProperties(entry.Entity, GetAuditUserId());
-                //    break;
+                    //case EntityState.Deleted: //It's not going here at all
+                    //    SetDeletionAuditProperties(entry.Entity, GetAuditUserId());
+                    //    break;
             }
         }
 
@@ -160,6 +171,7 @@ namespace Abp.EntityFramework
             AbpSession = NullAbpSession.Instance;
             EntityChangeEventHelper = NullEntityChangeEventHelper.Instance;
             GuidGenerator = SequentialGuidGenerator.Instance;
+            EventBus = NullEventBus.Instance;
         }
 
         public virtual void Initialize()
@@ -217,6 +229,7 @@ namespace Abp.EntityFramework
                     case EntityState.Added:
                         CheckAndSetId(entry.Entity);
                         CheckAndSetMustHaveTenantIdProperty(entry.Entity);
+                        CheckAndSetMayHaveTenantIdProperty(entry.Entity);
                         SetCreationAuditProperties(entry.Entity, userId);
                         EntityChangeEventHelper.TriggerEntityCreatingEvent(entry.Entity);
                         EntityChangeEventHelper.TriggerEntityCreatedEventOnUowCompleted(entry.Entity);
@@ -243,6 +256,30 @@ namespace Abp.EntityFramework
                         EntityChangeEventHelper.TriggerEntityDeletedEventOnUowCompleted(entry.Entity);
                         break;
                 }
+
+                TriggerDomainEvents(entry.Entity);
+            }
+        }
+
+        protected virtual void TriggerDomainEvents(object entityAsObj)
+        {
+            var generatesDomainEventsEntity = entityAsObj as IGeneratesDomainEvents;
+            if (generatesDomainEventsEntity == null)
+            {
+                return;
+            }
+
+            if (generatesDomainEventsEntity.DomainEvents.IsNullOrEmpty())
+            {
+                return;
+            }
+
+            var domainEvents = generatesDomainEventsEntity.DomainEvents.ToList();
+            generatesDomainEventsEntity.DomainEvents.Clear();
+
+            foreach (var domainEvent in domainEvents)
+            {
+                EventBus.Trigger(domainEvent.GetType(), entityAsObj, domainEvent);
             }
         }
 
@@ -288,6 +325,31 @@ namespace Abp.EntityFramework
             {
                 throw new AbpException("Can not set TenantId to 0 for IMustHaveTenant entities!");
             }
+        }
+
+        protected virtual void CheckAndSetMayHaveTenantIdProperty(object entityAsObj)
+        {
+            //Only works for single tenant applications
+            if (MultiTenancyConfig?.IsEnabled ?? false)
+            {
+                return;
+            }
+
+            //Only set IMayHaveTenant entities
+            if (!(entityAsObj is IMayHaveTenant))
+            {
+                return;
+            }
+
+            var entity = entityAsObj.As<IMayHaveTenant>();
+
+            //Don't set if it's already set
+            if (entity.TenantId != null)
+            {
+                return;
+            }
+
+            entity.TenantId = GetCurrentTenantIdOrNull();
         }
 
         protected virtual void SetCreationAuditProperties(object entityAsObj, long? userId)
@@ -448,8 +510,7 @@ namespace Abp.EntityFramework
 
         protected virtual int? GetCurrentTenantIdOrNull()
         {
-            if (CurrentUnitOfWorkProvider != null &&
-                CurrentUnitOfWorkProvider.Current != null)
+            if (CurrentUnitOfWorkProvider?.Current != null)
             {
                 return CurrentUnitOfWorkProvider.Current.GetTenantId();
             }

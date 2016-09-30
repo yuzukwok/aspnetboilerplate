@@ -1,10 +1,10 @@
 {
-  "version": "0.10.1.2-*",
+  "version": "1.0.0.0-*",
 
   "dependencies": {
-    "Abp": "0.10.1.2-*",
-    "Abp.Web.Api": "0.10.1.2-*",
-    "Microsoft.AspNet.OData": "5.9.1"
+    "Abp": "1.0.0.0-*",
+    "Abp.Web.Api": "1.0.0.0-*",
+    "Microsoft.AspNet.OData": "6.0.0"
   },
 
   "frameworks": {
@@ -31,10 +31,11 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/aspnetboilerplate/aspnetboilerplate"
+    },
+    "files": {
+      "mappings": {
+        "lib/net452/": "bin/Release/net452/Abp.Web.Api.OData.pdb"
+      }
     }
-  },
-
-  "packInclude": {
-    "lib/net452/": "bin/Release/net452/Abp.Web.Api.OData.pdb"
   }
 }
