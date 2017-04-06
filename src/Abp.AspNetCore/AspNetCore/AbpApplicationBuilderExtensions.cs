@@ -1,5 +1,8 @@
 ﻿using System.Globalization;
 using System.Linq;
+using Abp.AspNetCore.EmbeddedResources;
+using Abp.AspNetCore.Localization;
+using Abp.AspNetCore.Mvc.Views;
 using Abp.Dependency;
 using Abp.Localization;
 using Castle.LoggingFacility.MsLogging;
@@ -19,6 +22,19 @@ namespace Abp.AspNetCore
             InitializeAbp(app);
 
             ConfigureRequestLocalization(app);
+        }
+
+        public static void UseEmbeddedFiles(this IApplicationBuilder app)
+        {
+            //TODO: Can improve it or create a custom middleware?
+            app.UseStaticFiles(
+                new StaticFileOptions
+                {
+                    FileProvider = new EmbeddedResourceFileProvider(
+                        app.ApplicationServices.GetRequiredService<IIocResolver>()
+                    )
+                }
+            );
         }
 
         private static void InitializeAbp(IApplicationBuilder app)
@@ -42,7 +58,8 @@ namespace Abp.AspNetCore
 
         private static void ConfigureRequestLocalization(IApplicationBuilder app)
         {
-            using (var languageManager = app.ApplicationServices.GetRequiredService<IIocResolver>().ResolveAsDisposable<ILanguageManager>())
+            var iocResolver = app.ApplicationServices.GetRequiredService<IIocResolver>();
+            using (var languageManager = iocResolver.ResolveAsDisposable<ILanguageManager>())
             {
                 var defaultLanguage = languageManager.Object
                     .GetLanguages()
@@ -66,6 +83,8 @@ namespace Abp.AspNetCore
                     SupportedCultures = supportedCultures,
                     SupportedUICultures = supportedCultures
                 };
+
+                options.RequestCultureProviders.Insert(0, new AbpLocalizationHeaderRequestCultureProvider());
 
                 app.UseRequestLocalization(options);
             }

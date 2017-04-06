@@ -1,10 +1,13 @@
 ﻿using System.Reflection;
+using Abp.AspNetCore.App.MultiTenancy;
 using Abp.AspNetCore.TestBase;
 using Abp.Configuration.Startup;
 using Abp.Modules;
 using Abp.AspNetCore.Configuration;
 using Abp.AspNetCore.Mocks;
 using Abp.Auditing;
+using Abp.Localization;
+using Abp.MultiTenancy;
 
 namespace Abp.AspNetCore.App
 {
@@ -16,6 +19,7 @@ namespace Abp.AspNetCore.App
             Configuration.Auditing.IsEnabledForAnonymousUsers = true;
 
             Configuration.ReplaceService<IAuditingStore, MockAuditingStore>();
+            Configuration.ReplaceService<ITenantStore, TestTenantStore>();
 
             Configuration
                 .Modules.AbpAspNetCore()
@@ -27,6 +31,13 @@ namespace Abp.AspNetCore.App
         public override void Initialize()
         {
             IocManager.RegisterAssemblyByConvention(Assembly.GetExecutingAssembly());
+        }
+
+        public override void PostInitialize()
+        {
+            var localizationConfiguration = IocManager.IocContainer.Resolve<ILocalizationConfiguration>();
+            localizationConfiguration.Languages.Add(new LanguageInfo("en-US", "English", isDefault: true));
+            localizationConfiguration.Languages.Add(new LanguageInfo("it", "Italian"));
         }
     }
 }

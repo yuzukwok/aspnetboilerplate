@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using System.Reflection;
 using Abp.AspNetCore.Configuration;
+using Abp.AspNetCore.MultiTenancy;
 using Abp.AspNetCore.Mvc.Auditing;
 using Abp.AspNetCore.Runtime.Session;
 using Abp.AspNetCore.Security.AntiForgery;
@@ -10,6 +11,7 @@ using Abp.Dependency;
 using Abp.Modules;
 using Abp.Runtime.Session;
 using Abp.Web;
+using Abp.Web.MultiTenancy;
 using Abp.Web.Security.AntiForgery;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
@@ -30,6 +32,10 @@ namespace Abp.AspNetCore
             Configuration.ReplaceService<IClientInfoProvider, HttpContextClientInfoProvider>(DependencyLifeStyle.Transient);
 
             Configuration.Modules.AbpAspNetCore().FormBodyBindingIgnoredTypes.Add(typeof(IFormFile));
+
+            Configuration.MultiTenancy.Resolvers.Add<DomainTenantResolveContributor>();
+            Configuration.MultiTenancy.Resolvers.Add<HttpHeaderTenantResolveContributor>();
+            Configuration.MultiTenancy.Resolvers.Add<HttpCookieTenantResolveContributor>();
         }
 
         public override void Initialize()
@@ -47,11 +53,18 @@ namespace Abp.AspNetCore
         {
             var configuration = IocManager.Resolve<AbpAspNetCoreConfiguration>();
             var partManager = IocManager.Resolve<ApplicationPartManager>();
+            var moduleManager = IocManager.Resolve<IAbpModuleManager>();
 
-            var assemblies = configuration.ControllerAssemblySettings.Select(s => s.Assembly).Distinct();
-            foreach (var assembly in assemblies)
+            var controllerAssemblies = configuration.ControllerAssemblySettings.Select(s => s.Assembly).Distinct();
+            foreach (var controllerAssembly in controllerAssemblies)
             {
-                partManager.ApplicationParts.Add(new AssemblyPart(assembly));
+                partManager.ApplicationParts.Add(new AssemblyPart(controllerAssembly));
+            }
+
+            var plugInAssemblies = moduleManager.Modules.Where(m => m.IsLoadedAsPlugIn).Select(m => m.Assembly).Distinct();
+            foreach (var plugInAssembly in plugInAssemblies)
+            {
+                partManager.ApplicationParts.Add(new AssemblyPart(plugInAssembly));
             }
         }
 
