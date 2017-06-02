@@ -3,8 +3,7 @@
   <Import Project="..\..\common.props" />
   
   <PropertyGroup>
-    <VersionPrefix>1.5.0.0</VersionPrefix>
-    <TargetFramework>net461</TargetFramework>
+    <TargetFrameworks>net46;netstandard1.6</TargetFrameworks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyName>Abp.EntityFrameworkCore</AssemblyName>
     <PackageId>Abp.EntityFrameworkCore</PackageId>
@@ -21,23 +20,26 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="bin\Release\net461\Abp.EntityFrameworkCore.pdb">
-      <PackagePath>lib/net461/</PackagePath>
+    <None Update="bin\Release\net46\Abp.EntityFrameworkCore.pdb">
+      <PackagePath>lib/net46/</PackagePath>
+      <Pack>true</Pack>
+    </None>
+    <None Update="bin\Release\netstandard1.6\Abp.EntityFrameworkCore.pdb">
+      <PackagePath>lib/netstandard1.6/</PackagePath>
       <Pack>true</Pack>
     </None>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Abp\Abp.csproj" />
     <ProjectReference Include="..\Abp.EntityFramework.Common\Abp.EntityFramework.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="1.1.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="1.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="1.1.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="1.1.2" />
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net461' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net46' ">
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>

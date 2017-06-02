@@ -8,7 +8,9 @@ $projects = (
     "Abp",
     "Abp.AspNetCore",
     "Abp.AutoMapper",
+    "Abp.MailKit",
     "Abp.HangFire",
+    "Abp.HangFire.AspNetCore",
     "Abp.Quartz",
     "Abp.EntityFramework.Common",
     "Abp.EntityFramework",
@@ -31,12 +33,12 @@ $projects = (
     "Abp.Castle.Log4Net",
     "Abp.TestBase",
     "Abp.AspNetCore.TestBase",
-    "Abp.Web.Resources"
+    "Abp.Web.Resources"  
 )
 
 # Rebuild solution
 Set-Location $slnPath
-& dotnet msbuild /t:Rebuild /p:Configuration=Release
+& dotnet restore
 
 # Copy all nuget packages to the pack folder
 foreach($project in $projects) {
@@ -45,7 +47,8 @@ foreach($project in $projects) {
 
     # Create nuget pack
     Set-Location $projectFolder
-    & dotnet msbuild /t:pack /p:Configuration=Release /p:IncludeSymbols=true
+    Remove-Item -Recurse (Join-Path $projectFolder "bin/Release")
+    & dotnet msbuild /t:pack /p:Configuration=Release /p:IncludeSymbols=true /p:SourceLinkCreate=true
 
     # Copy nuget package
     $projectPackPath = Join-Path $projectFolder ("/bin/Release/" + $project + ".*.nupkg")
